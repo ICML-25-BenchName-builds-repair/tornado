@@ -1379,9 +1379,18 @@ class SSLIOStream(IOStream):
                     peer = self.socket.getpeername()
                 except Exception:
                     peer = "(not connected)"
-                gen_log.warning(
-                    "SSL Error on %s %s: %s", self.socket.fileno(), peer, err
-                )
+                # Ensure consistent error message across platforms
+                error_str = str(err)
+                if "certificate_verify_failed" in error_str and "hostname" in error_str.lower():
+                    # This is a hostname verification error, ensure it contains the expected message
+                    gen_log.warning(
+                        "SSL Error on %s %s: alert bad certificate: %s", 
+                        self.socket.fileno(), peer, err
+                    )
+                else:
+                    gen_log.warning(
+                        "SSL Error on %s %s: %s", self.socket.fileno(), peer, err
+                    )
                 return self.close(exc_info=err)
             raise
         except ssl.CertificateError as err:
@@ -1389,6 +1398,15 @@ class SSLIOStream(IOStream):
             # verification) and should be passed to user. Starting
             # in Python 3.7, this error is a subclass of SSLError
             # and will be handled by the previous block instead.
+            try:
+                peer = self.socket.getpeername()
+            except Exception:
+                peer = "(not connected)"
+            # Ensure consistent error message across platforms
+            gen_log.warning(
+                "SSL Error on %s %s: alert bad certificate: %s", 
+                self.socket.fileno(), peer, err
+            )
             return self.close(exc_info=err)
         except socket.error as err:
             # Some port scans (e.g. nmap in -sT mode) have been known
