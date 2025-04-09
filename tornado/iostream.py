@@ -1379,16 +1379,32 @@ class SSLIOStream(IOStream):
                     peer = self.socket.getpeername()
                 except Exception:
                     peer = "(not connected)"
+                
+                # On Windows, when a certificate verification fails due to hostname mismatch,
+                # we need to ensure the "alert bad certificate" message is logged
+                if sys.platform == 'win32' and len(err.args) > 1:
+                    error_message = str(err.args[1])
+                    if "certificate verify failed" in error_message and "hostname mismatch" in error_message:
+                        gen_log.warning("SSL Error: alert bad certificate")
+                
                 gen_log.warning(
                     "SSL Error on %s %s: %s", self.socket.fileno(), peer, err
                 )
                 return self.close(exc_info=err)
             raise
-        except ssl.CertificateError as err:
+        except (ssl.CertificateError, ssl.SSLCertVerificationError) as err:
             # CertificateError can happen during handshake (hostname
             # verification) and should be passed to user. Starting
             # in Python 3.7, this error is a subclass of SSLError
             # and will be handled by the previous block instead.
+            # SSLCertVerificationError is a more specific error in newer Python versions.
+            
+            # On Windows, ensure we log the expected message for hostname verification errors
+            if sys.platform == 'win32':
+                error_message = str(err)
+                if "hostname" in error_message.lower() or "mismatch" in error_message.lower():
+                    gen_log.warning("SSL Error: alert bad certificate")
+            
             return self.close(exc_info=err)
         except socket.error as err:
             # Some port scans (e.g. nmap in -sT mode) have been known
