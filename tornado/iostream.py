@@ -1389,6 +1389,13 @@ class SSLIOStream(IOStream):
             # verification) and should be passed to user. Starting
             # in Python 3.7, this error is a subclass of SSLError
             # and will be handled by the previous block instead.
+            try:
+                peer = self.socket.getpeername()
+            except Exception:
+                peer = "(not connected)"
+            gen_log.warning(
+                "SSL Certificate Error on %s %s: %s", self.socket.fileno(), peer, err
+            )
             return self.close(exc_info=err)
         except socket.error as err:
             # Some port scans (e.g. nmap in -sT mode) have been known
