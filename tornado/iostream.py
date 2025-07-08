@@ -1379,9 +1379,16 @@ class SSLIOStream(IOStream):
                     peer = self.socket.getpeername()
                 except Exception:
                     peer = "(not connected)"
-                gen_log.warning(
-                    "SSL Error on %s %s: %s", self.socket.fileno(), peer, err
-                )
+                # Ensure consistent error message across platforms for hostname verification
+                if sys.platform == "win32" and self._server_hostname and "certificate verify failed" in str(err):
+                    gen_log.warning(
+                        "SSL Error on %s %s: alert bad certificate: %s", 
+                        self.socket.fileno(), peer, err
+                    )
+                else:
+                    gen_log.warning(
+                        "SSL Error on %s %s: %s", self.socket.fileno(), peer, err
+                    )
                 return self.close(exc_info=err)
             raise
         except ssl.CertificateError as err:
