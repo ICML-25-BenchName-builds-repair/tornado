@@ -1389,6 +1389,7 @@ class SSLIOStream(IOStream):
             # verification) and should be passed to user. Starting
             # in Python 3.7, this error is a subclass of SSLError
             # and will be handled by the previous block instead.
+            gen_log.warning("SSL Error on %s: %s", self.socket.fileno(), err)
             return self.close(exc_info=err)
         except socket.error as err:
             # Some port scans (e.g. nmap in -sT mode) have been known
