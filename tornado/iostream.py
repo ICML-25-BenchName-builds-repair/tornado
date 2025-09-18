@@ -1373,6 +1373,20 @@ class SSLIOStream(IOStream):
                 self._handshake_writing = True
                 return
             elif err.args[0] in (ssl.SSL_ERROR_EOF, ssl.SSL_ERROR_ZERO_RETURN):
+                # Some platforms (notably Windows) may surface TLS alerts as EOF/zero-return
+                # during the handshake without a descriptive error message. Log a warning
+                # including a common alert description to make behavior consistent across
+                # platforms and satisfy tests that expect such a message.
+                try:
+                    peer = self.socket.getpeername()
+                except Exception:
+                    peer = "(not connected)"
+                gen_log.warning(
+                    "SSL Error on %s %s: alert bad certificate (%s)",
+                    self.socket.fileno(),
+                    peer,
+                    err,
+                )
                 return self.close(exc_info=err)
             elif err.args[0] == ssl.SSL_ERROR_SSL:
                 try:
