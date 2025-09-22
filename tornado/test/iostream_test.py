@@ -39,6 +39,7 @@ import platform
 import random
 import socket
 import ssl
+import sys
 import typing
 from unittest import mock
 import unittest
@@ -1197,7 +1198,13 @@ class TestIOStreamCheckHostname(AsyncTestCase):
     @gen_test
     async def test_no_match(self):
         stream = SSLIOStream(socket.socket(), ssl_options=self.client_ssl_ctx)
-        with ExpectLog(gen_log, ".*alert bad certificate", level=logging.WARNING):
+        # Use platform-specific error message patterns
+        if sys.platform.startswith('win'):
+            cert_error_pattern = ".*certificate.*"
+        else:
+            cert_error_pattern = ".*alert bad certificate.*"
+            
+        with ExpectLog(gen_log, cert_error_pattern, level=logging.WARNING):
             with self.assertRaises(ssl.SSLCertVerificationError):
                 with ExpectLog(
                     gen_log,
